@@ -75,7 +75,13 @@ const createDispatch = async (req, res) => {
 
     const order = orderRes.rows[0];
 
-    // proceed to item dispatch verification
+    if (order.status !== 'CONFIRMED') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `Order must be CONFIRMED before dispatch. Current status: ${order.status}`
+      });
+    }
 
     const itemsRes = await client.query(
       'SELECT product_id, quantity FROM sales_order_items WHERE sales_order_id = $1',
