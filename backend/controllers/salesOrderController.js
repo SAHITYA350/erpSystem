@@ -114,7 +114,7 @@ const confirmSalesOrder = async (req, res) => {
       }
 
       await client.query(
-        'UPDATE inventory SET reserved_quantity = reserved_quantity + $1 WHERE product_id = $2',
+        'UPDATE inventory SET reserved_quantity = $1 WHERE product_id = $2',
         [item.quantity, item.product_id]
       );
     }
