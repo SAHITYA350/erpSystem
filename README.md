@@ -68,18 +68,27 @@ crp_case_study/
 │   └── server.js
 ├── frontend/
 │   ├── src/
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── ProtectedRoute.jsx
+│   │   │   └── StatusBadge.jsx
 │   │   ├── pages/
 │   │   │   ├── Login.jsx
+│   │   │   ├── Signup.jsx
+│   │   │   ├── Dashboard.jsx
 │   │   │   ├── Enquiries.jsx
 │   │   │   ├── Quotations.jsx
 │   │   │   ├── SalesOrders.jsx
-│   │   │   ├── Dispatches.jsx
-│   │   │   ├── Inventory.jsx
-│   │   │   └── Products.jsx
+│   │   │   ├── Products.jsx
+│   │   │   └── Profile.jsx
 │   │   ├── services/
+│   │   │   └── api.js
 │   │   ├── App.jsx
-│   │   └── main.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
 │   ├── package.json
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
 │   └── vite.config.js
 ├── POSTMAN_GUIDE.md
 └── README.md
