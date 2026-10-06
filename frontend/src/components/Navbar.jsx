@@ -22,6 +22,8 @@ function Navbar() {
     { to: '/enquiries', label: 'Enquiries' },
     { to: '/quotations', label: 'Quotations' },
     { to: '/sales-orders', label: 'Sales Orders' },
+    { to: '/inventory', label: 'Inventory' },
+    { to: '/dispatches', label: 'Dispatches' },
     { to: '/products', label: 'Products' },
   ]
 

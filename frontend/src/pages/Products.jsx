@@ -1,247 +1,156 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import api from '../services/api'
 
-function Products() {
-  const userStr = localStorage.getItem('user')
-  const user = userStr ? JSON.parse(userStr) : {}
+const emptyForm = {
+  product_code: '', product_name: '', category: '', unit: '', base_price: '', initial_stock: ''
+}
+
+export default function Products() {
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(emptyForm)
+  const [msg, setMsg] = useState({ text: '', type: '' })
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isAdmin = user.role === 'ADMIN'
 
-  const [products, setProducts] = useState([])
-  const [showForm, setShowForm] = useState(false)
-  const [editProduct, setEditProduct] = useState(null)
-  const [stockEdit, setStockEdit] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+  useEffect(() => { loadProducts() }, [])
 
-  const emptyForm = {
-    product_code: '', product_name: '', category: '', unit: 'Nos',
-    base_price: '', physical_quantity: '', reorder_level: '10'
-  }
-  const [form, setForm] = useState(emptyForm)
-
-  useEffect(() => { fetchProducts() }, [])
-
-  const fetchProducts = async () => {
+  async function loadProducts() {
     setLoading(true)
     try {
       const res = await api.get('/products')
       setProducts(res.data.data)
-    } catch { setError('Failed to load products.') }
-    finally { setLoading(false) }
+    } catch {
+      setMsg({ text: 'Failed to load products', type: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = async (e) => {
+  function change(e) {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
-    setError('')
+    setMsg({ text: '', type: '' })
     try {
-      if (editProduct) {
-        await api.put(`/products/${editProduct.id}`, {
-          product_name: form.product_name,
-          category: form.category,
-          unit: form.unit,
-          base_price: parseFloat(form.base_price),
-          reorder_level: parseInt(form.reorder_level),
-        })
-      } else {
-        await api.post('/products', {
-          product_code: form.product_code,
-          product_name: form.product_name,
-          category: form.category,
-          unit: form.unit,
-          base_price: parseFloat(form.base_price),
-          physical_quantity: parseInt(form.physical_quantity),
-          reorder_level: parseInt(form.reorder_level),
-        })
-      }
+      await api.post('/products', {
+        ...form,
+        base_price: Number(form.base_price),
+        initial_stock: Number(form.initial_stock) || 0
+      })
+      setMsg({ text: 'Product added successfully!', type: 'success' })
       setForm(emptyForm)
       setShowForm(false)
-      setEditProduct(null)
-      fetchProducts()
+      loadProducts()
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save product.')
+      setMsg({ text: err.response?.data?.message || 'Failed to add product', type: 'error' })
     }
   }
-
-  const handleStockUpdate = async (e, productId) => {
-    e.preventDefault()
-    setError('')
-    try {
-      await api.patch(`/products/${productId}/stock`, {
-        quantity: parseInt(stockEdit.quantity),
-        operation: stockEdit.operation,
-      })
-      setStockEdit(null)
-      fetchProducts()
-    } catch (err) {
-      setError(err.response?.data?.message || 'Stock update failed.')
-    }
-  }
-
-  const startEdit = (p) => {
-    setEditProduct(p)
-    setForm({
-      product_code: p.product_code,
-      product_name: p.product_name,
-      category: p.category,
-      unit: p.unit,
-      base_price: p.base_price,
-      physical_quantity: p.physical_quantity,
-      reorder_level: p.reorder_level,
-    })
-    setShowForm(true)
-    setStockEdit(null)
-  }
-
-  const availableQty = (p) => (p.physical_quantity || 0) - (p.reserved_quantity || 0)
-
-  if (loading) return <div className="p-6 text-gray-500">Loading...</div>
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-gray-800">Products</h2>
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Products</h1>
+          <p className="text-sm text-gray-500">
+            {isAdmin ? 'Manage product master list' : 'View product catalogue'}
+          </p>
+        </div>
+        {/* Only ADMIN can add products */}
         {isAdmin && (
-          <button onClick={() => { setShowForm(!showForm); setEditProduct(null); setForm(emptyForm) }}
-            className="text-sm bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700">
+          <button onClick={() => { setShowForm(!showForm); setMsg({ text: '', type: '' }) }}
+            className="bg-gray-900 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">
             {showForm ? 'Cancel' : '+ Add Product'}
           </button>
         )}
       </div>
 
-      {error && <div className="mb-4 bg-red-100 text-red-700 text-sm px-3 py-2 rounded">{error}</div>}
+      {msg.text && (
+        <div className={`mb-4 px-4 py-2 rounded text-sm ${msg.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+          {msg.text}
+        </div>
+      )}
 
-      {showForm && isAdmin && (
-        <form onSubmit={handleSubmit} className="bg-white border rounded shadow-sm p-5 mb-5 space-y-4">
-          <h3 className="font-semibold text-gray-700">{editProduct ? 'Edit Product' : 'Create Product'}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {!editProduct && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Product Code *</label>
-                <input type="text" value={form.product_code} required
-                  onChange={e => setForm({ ...form, product_code: e.target.value })}
-                  className="w-full border rounded px-3 py-2 text-sm" placeholder="P007" />
-              </div>
-            )}
+      {/* Add form — Admin only */}
+      {isAdmin && showForm && (
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 mb-6 space-y-4">
+          <h2 className="text-base font-semibold text-gray-700">New Product</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Product Code *</label>
+              <input name="product_code" value={form.product_code} onChange={change}
+                placeholder="e.g. MOT-001" required className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+            </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Product Name *</label>
-              <input type="text" value={form.product_name} required
-                onChange={e => setForm({ ...form, product_name: e.target.value })}
-                className="w-full border rounded px-3 py-2 text-sm" />
+              <input name="product_name" value={form.product_name} onChange={change}
+                placeholder="e.g. Industrial Motor 3-Phase" required className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
-              <input type="text" value={form.category}
-                onChange={e => setForm({ ...form, category: e.target.value })}
-                className="w-full border rounded px-3 py-2 text-sm" placeholder="Electrical" />
+              <label className="block text-xs font-medium text-gray-600 mb-1">Category *</label>
+              <input name="category" value={form.category} onChange={change}
+                placeholder="e.g. Electrical" required className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Unit</label>
-              <select value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}
-                className="w-full border rounded px-3 py-2 text-sm">
-                <option>Nos</option>
-                <option>Kg</option>
-                <option>Mtr</option>
-                <option>Ltr</option>
-                <option>Set</option>
-              </select>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Unit *</label>
+              <input name="unit" value={form.unit} onChange={change}
+                placeholder="e.g. Nos" required className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Base Price *</label>
-              <input type="number" min="0" step="0.01" value={form.base_price} required
-                onChange={e => setForm({ ...form, base_price: e.target.value })}
-                className="w-full border rounded px-3 py-2 text-sm" />
+              <label className="block text-xs font-medium text-gray-600 mb-1">Base Price (₹) *</label>
+              <input name="base_price" type="number" value={form.base_price} onChange={change}
+                placeholder="e.g. 18500" min="0" required className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
             </div>
-            {!editProduct && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Opening Stock *</label>
-                <input type="number" min="0" value={form.physical_quantity} required
-                  onChange={e => setForm({ ...form, physical_quantity: e.target.value })}
-                  className="w-full border rounded px-3 py-2 text-sm" />
-              </div>
-            )}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Reorder Level</label>
-              <input type="number" min="0" value={form.reorder_level}
-                onChange={e => setForm({ ...form, reorder_level: e.target.value })}
-                className="w-full border rounded px-3 py-2 text-sm" />
+              <label className="block text-xs font-medium text-gray-600 mb-1">Initial Stock (qty)</label>
+              <input name="initial_stock" type="number" value={form.initial_stock} onChange={change}
+                placeholder="e.g. 100" min="0" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
             </div>
           </div>
-          <button type="submit" className="bg-purple-600 text-white text-sm px-4 py-2 rounded hover:bg-purple-700">
-            {editProduct ? 'Update Product' : 'Add Product'}
-          </button>
+          <div className="flex gap-3 pt-1">
+            <button type="submit" className="bg-gray-900 hover:bg-gray-700 text-white px-5 py-2 rounded text-sm">Add Product</button>
+            <button type="button" onClick={() => { setShowForm(false); setForm(emptyForm) }}
+              className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded border border-gray-200">Cancel</button>
+          </div>
         </form>
       )}
 
-      {stockEdit && isAdmin && (
-        <form onSubmit={(e) => handleStockUpdate(e, stockEdit.id)}
-          className="bg-white border rounded shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-end">
-          <div>
-            <p className="text-sm font-semibold text-gray-700 mb-1">Update Stock: {stockEdit.product_name}</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Operation</label>
-            <select value={stockEdit.operation}
-              onChange={e => setStockEdit({ ...stockEdit, operation: e.target.value })}
-              className="border rounded px-3 py-2 text-sm">
-              <option value="ADD">Add Stock</option>
-              <option value="REMOVE">Remove Stock</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
-            <input type="number" min="1" value={stockEdit.quantity} required
-              onChange={e => setStockEdit({ ...stockEdit, quantity: e.target.value })}
-              className="border rounded px-3 py-2 text-sm w-28" />
-          </div>
-          <button type="submit" className="bg-orange-500 text-white text-sm px-3 py-2 rounded hover:bg-orange-600">Update</button>
-          <button type="button" onClick={() => setStockEdit(null)} className="text-sm text-gray-500 hover:underline">Cancel</button>
-        </form>
-      )}
-
-      <div className="bg-white border rounded shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-            <tr>
-              <th className="px-4 py-3 text-left">Code</th>
-              <th className="px-4 py-3 text-left">Product</th>
-              <th className="px-4 py-3 text-left">Category</th>
-              <th className="px-4 py-3 text-right">Price</th>
-              <th className="px-4 py-3 text-center">Physical</th>
-              <th className="px-4 py-3 text-center">Reserved</th>
-              <th className="px-4 py-3 text-center">Available</th>
-              {isAdmin && <th className="px-4 py-3 text-left">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {products.length === 0 ? (
-              <tr><td colSpan={isAdmin ? 8 : 7} className="px-4 py-6 text-center text-gray-400">No products found.</td></tr>
-            ) : products.map(p => (
-              <tr key={p.id} className={`border-t hover:bg-gray-50 ${availableQty(p) <= p.reorder_level ? 'bg-red-50' : ''}`}>
-                <td className="px-4 py-3 font-mono text-xs">{p.product_code}</td>
-                <td className="px-4 py-3 font-medium">{p.product_name}</td>
-                <td className="px-4 py-3 text-gray-500">{p.category || '—'}</td>
-                <td className="px-4 py-3 text-right">₹{parseFloat(p.base_price).toLocaleString('en-IN')}</td>
-                <td className="px-4 py-3 text-center">{p.physical_quantity}</td>
-                <td className="px-4 py-3 text-center text-yellow-600">{p.reserved_quantity}</td>
-                <td className={`px-4 py-3 text-center font-semibold ${availableQty(p) <= p.reorder_level ? 'text-red-600' : 'text-green-700'}`}>
-                  {availableQty(p)}
-                </td>
-                {isAdmin && (
-                  <td className="px-4 py-3 flex gap-2">
-                    <button onClick={() => startEdit(p)}
-                      className="text-xs text-blue-600 hover:underline">Edit</button>
-                    <button onClick={() => { setStockEdit({ ...p, quantity: '', operation: 'ADD' }); setShowForm(false) }}
-                      className="text-xs text-orange-600 hover:underline">Stock</button>
-                  </td>
-                )}
+      {loading ? (
+        <div className="text-center py-10 text-gray-400 text-sm">Loading products...</div>
+      ) : products.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-400">
+          No products yet.{isAdmin ? ' Click + Add Product to add one.' : ' Ask Admin to add products.'}
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 text-gray-600 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3">Code</th>
+                <th className="px-4 py-3">Product Name</th>
+                <th className="px-4 py-3">Category</th>
+                <th className="px-4 py-3">Unit</th>
+                <th className="px-4 py-3">Base Price</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-xs text-gray-400 mt-2">* Rows highlighted in red are below reorder level.</p>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {products.map(p => (
+                <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{p.product_code}</td>
+                  <td className="px-4 py-3 font-medium text-gray-800">{p.product_name}</td>
+                  <td className="px-4 py-3 text-gray-500">{p.category}</td>
+                  <td className="px-4 py-3 text-gray-500">{p.unit}</td>
+                  <td className="px-4 py-3 text-gray-700">₹{Number(p.base_price).toLocaleString('en-IN')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
-
-export default Products

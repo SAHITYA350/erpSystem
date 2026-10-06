@@ -9,6 +9,8 @@ import Enquiries from './pages/Enquiries'
 import Quotations from './pages/Quotations'
 import SalesOrders from './pages/SalesOrders'
 import Products from './pages/Products'
+import Dispatches from './pages/Dispatches'
+import Inventory from './pages/Inventory'
 import Profile from './pages/Profile'
 
 function Layout({ children }) {
@@ -68,6 +70,28 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <SalesOrders />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Inventory />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dispatches"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Dispatches />
               </Layout>
             </ProtectedRoute>
           }
