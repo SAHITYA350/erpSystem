@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS customers (
     mobile           VARCHAR(20) NOT NULL,
     email            VARCHAR(150),
     city             VARCHAR(100),
+    created_by       INTEGER REFERENCES users(id),
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS products (
     category         VARCHAR(100) NOT NULL,
     unit             VARCHAR(30) NOT NULL,
     base_price       NUMERIC(12,2) NOT NULL CHECK (base_price >= 0),
+    reorder_level    INTEGER DEFAULT 10,
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
