@@ -1,6 +1,6 @@
 # ERP Case Study — Full-Stack PERN Application
 
-> **Stack:** PostgreSQL · Express.js · React.js · Node.js
+> **Stack:** PostgreSQL · Express.js · React.js · Node.js  
 > **Workflow:** Customer Enquiry → Quotation → Sales Order → Inventory Reservation → Dispatch
 
 ---
@@ -12,7 +12,7 @@
 3. [Prerequisites](#prerequisites)
 4. [Environment Variables](#environment-variables)
 5. [Database Setup](#database-setup)
-6. [Migration &amp; Seed Instructions](#migration--seed-instructions)
+6. [Migration & Seed Instructions](#migration--seed-instructions)
 7. [Running the Application](#running-the-application)
 8. [Test Login Credentials](#test-login-credentials)
 9. [Running Tests](#running-tests)
@@ -29,7 +29,7 @@
 | -------- | ------------------------------------------------- |
 | Frontend | React 19, Vite, React Router, Axios, Tailwind CSS |
 | Backend  | Node.js, Express.js                               |
-| Database | PostgreSQL (raw `pg` driver)                    |
+| Database | PostgreSQL (raw `pg` driver)                      |
 | Auth     | JWT (jsonwebtoken) + bcryptjs                     |
 
 ---
@@ -37,10 +37,10 @@
 ## Project Structure
 
 ```
-crp_case_study/
+erpSystem/
 ├── backend/
 │   ├── config/
-│   │   └── db.js               # PostgreSQL pool
+│   │   └── db.js               # PostgreSQL pool connection
 │   ├── controllers/
 │   │   ├── authController.js
 │   │   ├── enquiryController.js
@@ -49,8 +49,8 @@ crp_case_study/
 │   │   ├── dispatchController.js
 │   │   └── inventoryController.js
 │   ├── db/
-│   │   ├── schema.sql           # All table definitions
-│   │   └── seed.js              # Initial users + products + inventory
+│   │   ├── schema.sql           # All 11 table definitions with FKs & constraints
+│   │   └── seed.js              # Complete DB reset & initial data seed script
 │   ├── middleware/
 │   │   ├── authMiddleware.js    # JWT verification
 │   │   └── roleMiddleware.js    # RBAC (ADMIN / SALES_USER)
@@ -62,28 +62,31 @@ crp_case_study/
 │   │   ├── dispatchRoutes.js
 │   │   └── inventoryRoutes.js
 │   ├── utils/
-│   │   └── generateNumber.js   # Auto-number generator (SO-001, QUO-001 …)
-│   ├── .env                    # Environment variables (not committed)
+│   │   └── generateNumber.js   # Auto-number generator (SO-001, QUO-001, DIS-001 …)
+│   ├── .env                    # Local environment variables
+│   ├── .env.example            # Environment template
 │   ├── package.json
 │   └── server.js
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Navbar.jsx
+│   │   │   ├── Navbar.jsx       # Universal top navbar with active tab indicators
 │   │   │   ├── ProtectedRoute.jsx
-│   │   │   └── StatusBadge.jsx
+│   │   │   └── StatusBadge.jsx  # Color-coded workflow badges
 │   │   ├── pages/
 │   │   │   ├── Login.jsx
 │   │   │   ├── Signup.jsx
 │   │   │   ├── Dashboard.jsx
-│   │   │   ├── Enquiries.jsx
-│   │   │   ├── Quotations.jsx
-│   │   │   ├── SalesOrders.jsx
-│   │   │   ├── Products.jsx
+│   │   │   ├── Enquiries.jsx    # Create/view enquiries & + Create Quote action
+│   │   │   ├── Quotations.jsx   # Auto-filled quotes, customer approval & SO conversion
+│   │   │   ├── SalesOrders.jsx  # Order details, inventory reserve & dispatch
+│   │   │   ├── Inventory.jsx    # Real-time physical/reserved/available stock
+│   │   │   ├── Dispatches.jsx   # Completed delivery logs & vehicle info
+│   │   │   ├── Products.jsx     # Industrial product catalog master
 │   │   │   └── Profile.jsx
 │   │   ├── services/
 │   │   │   └── api.js
-│   │   ├── App.jsx
+│   │   ├── App.jsx              # Client-side routes & Layout
 │   │   ├── main.jsx
 │   │   └── index.css
 │   ├── package.json
@@ -110,9 +113,9 @@ Create `backend/.env`:
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://<user>:<password>@localhost:5432/<database_name>
-JWT_SECRET=your_jwt_secret_key
-ADMIN_REGISTRATION_CODE=ADMIN@2025
+DATABASE_URL=postgresql://postgres:password@localhost:5432/erp_case_study
+JWT_SECRET=super_secret_jwt_erp_auth_token_2025_key_xyz
+ADMIN_REGISTRATION_CODE=ADMIN_SECURE_REGISTRATION_KEY_2025
 ```
 
 | Variable                    | Description                               |
@@ -120,7 +123,7 @@ ADMIN_REGISTRATION_CODE=ADMIN@2025
 | `PORT`                    | Express server port (default 5000)        |
 | `DATABASE_URL`            | Full PostgreSQL connection string         |
 | `JWT_SECRET`              | Secret key used to sign/verify JWT tokens |
-| `ADMIN_REGISTRATION_CODE` | Required to register an ADMIN account     |
+| `ADMIN_REGISTRATION_CODE` | Secret code required to register an ADMIN |
 
 ---
 
@@ -134,52 +137,27 @@ Open **pgAdmin** or `psql` and run:
 CREATE DATABASE erp_case_study;
 ```
 
-### 2. Apply the schema
-
-In pgAdmin → Query Tool (connected to `erp_case_study`), open and run:
-
-```
-backend/db/schema.sql
-```
-
-This creates all 11 tables:
-`users`, `customers`, `products`, `inventory`, `enquiries`, `enquiry_items`,
-`quotations`, `quotation_items`, `sales_orders`, `sales_order_items`, `dispatches`, `dispatch_items`
-
 ---
 
 ## Migration & Seed Instructions
 
 ### Run the seed script
 
-After the schema is applied, from the **project root** run:
+From the **`backend`** directory run:
 
 ```bash
 cd backend
-npm run seed
+npm run db:seed
 ```
 
-This inserts:
+This automatically drops old tables, creates the schema, and seeds:
 
 | Data | Details |
 | -------------------- | ------------------------------------- |
 | **Admin user** | `admin@example.com` / `Admin@123` |
 | **Sales user** | `sales@example.com` / `Sales@123` |
-| **6 products** | P001–P006 (see below) |
+| **6 products** | P001–P006 (Industrial Motors, Pumps, Cables, etc.) |
 | **Inventory** | Initial stock for each product |
-
-**Seeded products:**
-
-| Code | Product Name                       | Category   | Unit  | Base Price | Initial Stock |
-| ---- | ---------------------------------- | ---------- | ----- | ---------- | ------------- |
-| P001 | Industrial Motor (3-Phase)         | Electrical | Nos   | ₹18,500   | 150           |
-| P002 | Centrifugal Water Pump             | Pumps      | Nos   | ₹12,000   | 80            |
-| P003 | Industrial Control Panel           | Electrical | Nos   | ₹45,000   | 40            |
-| P004 | Helical Gear Assembly              | Mechanical | Set   | ₹8,200    | 200           |
-| P005 | Deep Groove Ball Bearing           | Mechanical | Nos   | ₹650      | 500           |
-| P006 | Armoured Power Cable (4-Core, 6mm) | Cables     | Meter | ₹285      | 2000          |
-
-> The seed script is **idempotent** — running it twice will skip existing records.
 
 ---
 
@@ -198,10 +176,10 @@ npm run dev       # starts on http://localhost:5000
 ```bash
 cd frontend
 npm install
-npm run dev       # starts on http://localhost:5173
+npm run dev       # starts on http://localhost:3000 (or 3001)
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3000` in your browser.
 
 ---
 
@@ -222,21 +200,18 @@ npm test
 ```
 
 The test suite covers:
-
-| # | Test                                                   |
-| - | ------------------------------------------------------ |
-| 1 | Quotation total is calculated correctly (backend math) |
-| 2 | DRAFT / REJECTED quotation cannot create a Sales Order |
-| 3 | Same quotation cannot generate duplicate Sales Orders  |
-| 4 | Cannot reserve more than available inventory           |
-| 5 | Unauthorized user (SALES_USER) cannot confirm order    |
-| B | Bonus: Simultaneous inventory reservation conflict     |
+1. Quotation total is calculated correctly (backend math).
+2. DRAFT / REJECTED quotation cannot create a Sales Order.
+3. Same quotation cannot generate duplicate Sales Orders.
+4. Cannot reserve more than available inventory.
+5. Unauthorized user (SALES_USER) cannot perform restricted operations.
+6. Bonus: Simultaneous inventory reservation conflict (`SELECT FOR UPDATE`).
 
 ---
 
 ## API Documentation
 
-See **`POSTMAN_GUIDE.md`** for a full step-by-step API guide with request/response examples.
+See **`POSTMAN_GUIDE.md`** for a step-by-step API guide with request/response examples.
 
 ### Quick Reference
 
@@ -265,11 +240,10 @@ POST   /api/quotations/:id/convert
 GET    /api/sales-orders
 GET    /api/sales-orders/:id
 POST   /api/sales-orders/:id/confirm        (ADMIN)
-POST   /api/sales-orders/:id/dispatch       (ADMIN — deprecated, use /dispatches)
+POST   /api/sales-orders/:id/dispatch       (ADMIN)
 
 GET    /api/dispatches
 GET    /api/dispatches/:id
-POST   /api/dispatches                      (ADMIN)
 ```
 
 ---
@@ -288,7 +262,7 @@ POST   /api/dispatches                      (ADMIN)
 [Admin]       POST .../confirm         → reserved_quantity += ordered qty
                                           Sales Order (CONFIRMED)
                                               |
-[Admin]       POST /dispatches         → physical_quantity -= dispatched qty
+[Admin]       POST .../dispatch        → physical_quantity -= dispatched qty
                                           reserved_quantity -= dispatched qty
                                           Sales Order (DISPATCHED)
 ```
@@ -297,72 +271,18 @@ POST   /api/dispatches                      (ADMIN)
 
 ## Database Schema
 
-### Entity Relationship (summary)
-
 ```
-users
-  └── creates enquiries (created_by)
-
-customers
-  ├── enquiries      (1 : many)
-  ├── quotations     (1 : many)
-  └── sales_orders   (1 : many)
-
-enquiries
-  ├── enquiry_items  (1 : many)  → products
-  └── quotations     (1 : many)
-
-quotations
-  ├── quotation_items (1 : many) → products
-  └── sales_orders    (1 : 1)    → UNIQUE quotation_id prevents duplicate orders
-
-sales_orders
-  ├── sales_order_items (1 : many) → products
-  └── dispatches        (1 : 1)
-
 inventory
   └── products (1 : 1)
       physical_quantity  — actual warehouse stock
       reserved_quantity  — locked for confirmed orders
-      available = physical - reserved  (computed, NOT stored)
+      available_quantity = physical - reserved (computed)
 ```
-
-### Key constraints
-
-| Constraint                            | Purpose                                 |
-| ------------------------------------- | --------------------------------------- |
-| `sales_orders.quotation_id UNIQUE`  | One quotation → max one sales order    |
-| `inventory.product_id UNIQUE`       | One inventory row per product           |
-| `CHECK (physical_quantity >= 0)`    | No negative stock                       |
-| `CHECK (reserved_quantity >= 0)`    | No negative reservation                 |
-| `SELECT ... FOR UPDATE` in confirm  | Row-level lock prevents race conditions |
-| `TRANSACTION` on all multi-step ops | Full rollback on any failure            |
 
 ---
 
 ## Key Technical Decisions
 
-### 1. Concurrent Reservation (Race Condition)
-
-The confirm order flow uses `SELECT ... FOR UPDATE` inside a transaction.
-This row-level lock ensures that if two admins confirm orders for the same product simultaneously, only one can succeed — the other will wait, then fail the availability check.
-
-### 2. Backend-Calculated Totals
-
-The quotation `total_amount` is **always computed on the backend** using:
-
-```
-base       = qty × unit_price
-discounted = base − (base × discount% / 100)
-line_amount = discounted + (discounted × gst% / 100)
-```
-
-The frontend never sends a total; it only receives the backend-computed value.
-
-### 3. No ORM
-
-Raw `pg` (node-postgres) is used for full SQL control, explicit transactions, and `FOR UPDATE` locking — which is difficult to express cleanly in most ORMs.
-
-### 4. Idempotent Seed
-
-`seed.js` checks for existing records before inserting, so it can be safely re-run without duplicating data.
+1. **Concurrent Reservation Protection**: Row-level locking (`SELECT ... FOR UPDATE`) inside an explicit transaction block (`BEGIN ... COMMIT`).
+2. **Backend-Calculated Totals**: All financial calculations (base price, discount %, GST %) are enforced on the backend.
+3. **Role-Based Access Control**: Strict middleware checking JWT tokens and user roles (`ADMIN` vs `SALES_USER`).
