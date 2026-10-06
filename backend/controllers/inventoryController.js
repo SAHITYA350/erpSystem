@@ -115,7 +115,13 @@ const updateStock = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Inventory record not found.' });
     }
 
-    // update physical stock directly
+    const reserved = invCheck.rows[0].reserved_quantity;
+    if (Number(physical_quantity) < reserved) {
+      return res.status(400).json({
+        success: false,
+        message: `Physical stock cannot be less than reserved stock (${reserved}).`
+      });
+    }
 
     const updated = await pool.query(
       'UPDATE inventory SET physical_quantity = $1 WHERE product_id = $2 RETURNING *',
