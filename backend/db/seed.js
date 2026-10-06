@@ -19,27 +19,50 @@ const products = [
   { product_code: "P006", product_name: "Armoured Power Cable (4-Core, 6mm)",category: "Cables",     unit: "Meter", base_price:   285.00, initial_stock: 2000 },
 ];
 
+const customers = [
+  { company_name: "ABC Industries", contact_person: "Ramesh Sharma", mobile: "9876543210", email: "ramesh@abcind.com", city: "Mumbai" },
+  { company_name: "XYZ Pvt Ltd", contact_person: "Priya Patel", mobile: "9823456789", email: "priya@xyzpvtltd.com", city: "Ahmedabad" },
+  { company_name: "Apex Heavy Engineering", contact_person: "Vikram Verma", mobile: "9811223344", email: "vikram@apexeng.com", city: "Pune" },
+];
+
 async function seed() {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     console.log("\n[1] Seeding users...");
+    let salesUserId = null;
     for (const u of users) {
       const exists = await client.query("SELECT id FROM users WHERE email = $1", [u.email]);
       if (exists.rows.length > 0) {
         console.log("    SKIP  " + u.email + " (already exists)");
+        if (u.role === 'SALES_USER') salesUserId = exists.rows[0].id;
         continue;
       }
       const hash = await bcrypt.hash(u.password, 10);
-      await client.query(
-        "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4)",
+      const res = await client.query(
+        "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id",
         [u.name, u.email, hash, u.role]
       );
+      if (u.role === 'SALES_USER') salesUserId = res.rows[0].id;
       console.log("    OK    " + u.role + " -> " + u.email);
     }
 
-    console.log("\n[2] Seeding products & inventory...");
+    console.log("\n[2] Seeding customers...");
+    for (const c of customers) {
+      const exists = await client.query("SELECT id FROM customers WHERE company_name = $1", [c.company_name]);
+      if (exists.rows.length > 0) {
+        console.log("    SKIP  " + c.company_name + " (already exists)");
+        continue;
+      }
+      await client.query(
+        "INSERT INTO customers (company_name, contact_person, mobile, email, city, created_by) VALUES ($1, $2, $3, $4, $5, $6)",
+        [c.company_name, c.contact_person, c.mobile, c.email, c.city, salesUserId]
+      );
+      console.log("    OK    " + c.company_name + " (" + c.contact_person + ")");
+    }
+
+    console.log("\n[3] Seeding products & inventory...");
     for (const p of products) {
       const exists = await client.query("SELECT id FROM products WHERE product_code = $1", [p.product_code]);
       if (exists.rows.length > 0) {
@@ -47,7 +70,7 @@ async function seed() {
         continue;
       }
       const prodRes = await client.query(
-        "INSERT INTO products (product_code, product_name, category, unit, base_price) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "INSERT INTO products (product_code, product_name, category, unit, base_price, reorder_level) VALUES ($1, $2, $3, $4, $5, 10) RETURNING id",
         [p.product_code, p.product_name, p.category, p.unit, p.base_price]
       );
       await client.query(

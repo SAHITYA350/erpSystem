@@ -26,8 +26,8 @@ const createEnquiry = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Provide customer_id or full customer details.' });
       }
       const custRes = await client.query(
-        'INSERT INTO customers (company_name, contact_person, mobile, email, city) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-        [company_name, contact_person, mobile, email || null, city || null]
+        'INSERT INTO customers (company_name, contact_person, mobile, email, city, created_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+        [company_name, contact_person, mobile, email || null, city || null, req.user ? req.user.id : null]
       );
       resolvedCustomerId = custRes.rows[0].id;
     } else {

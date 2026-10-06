@@ -257,26 +257,24 @@ function Quotations() {
             <div className="font-bold text-base">Grand Total: {fmt(selected.total_amount)}</div>
           </div>
 
-          {user.role === 'ADMIN' && (
-            <div className="flex gap-2 mt-4 flex-wrap">
-              {selected.status === 'DRAFT' && (
-                <button onClick={() => updateStatus(selected.id, 'SENT')}
-                  className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">Mark Sent</button>
-              )}
-              {selected.status === 'SENT' && (
-                <>
-                  <button onClick={() => updateStatus(selected.id, 'ACCEPTED')}
-                    className="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">Accept</button>
-                  <button onClick={() => updateStatus(selected.id, 'REJECTED')}
-                    className="text-sm bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700">Reject</button>
-                </>
-              )}
-              {selected.status === 'ACCEPTED' && (
-                <button onClick={() => convertToSO(selected.id)}
-                  className="text-sm bg-green-700 text-white px-3 py-1.5 rounded hover:bg-green-800">Convert to Sales Order</button>
-              )}
-            </div>
-          )}
+          <div className="flex gap-2 mt-4 flex-wrap">
+            {selected.status === 'DRAFT' && (
+              <button onClick={() => updateStatus(selected.id, 'SENT')}
+                className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">Mark Sent</button>
+            )}
+            {selected.status === 'SENT' && (
+              <>
+                <button onClick={() => updateStatus(selected.id, 'ACCEPTED')}
+                  className="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">Accept</button>
+                <button onClick={() => updateStatus(selected.id, 'REJECTED')}
+                  className="text-sm bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700">Reject</button>
+              </>
+            )}
+            {selected.status === 'ACCEPTED' && (
+              <button onClick={() => convertToSO(selected.id)}
+                className="text-sm bg-green-700 text-white px-3 py-1.5 rounded hover:bg-green-800">Convert to Sales Order</button>
+            )}
+          </div>
         </div>
       )}
 

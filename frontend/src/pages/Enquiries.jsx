@@ -116,18 +116,37 @@ function Enquiries() {
           <h3 className="font-semibold text-gray-700">New Enquiry</h3>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Existing Customer</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-gray-700">Customer Selection</label>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, customer_id: form.customer_id ? '' : (customers[0]?.id || '') })}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                {form.customer_id ? '+ Switch to New Customer Form' : 'Select from Existing Customers'}
+              </button>
+            </div>
             <select
               value={form.customer_id}
               onChange={e => setForm({ ...form, customer_id: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
             >
-              <option value="">-- New Customer --</option>
+              <option value="">-- Create as New Customer below --</option>
               {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.company_name} — {c.contact_person}</option>
+                <option key={c.id} value={c.id}>{c.company_name} — {c.contact_person} ({c.city || 'No City'})</option>
               ))}
             </select>
           </div>
+
+          {form.customer_id && (
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-900 flex justify-between items-center">
+              <div>
+                <p className="font-semibold text-sm">{customers.find(c => c.id === Number(form.customer_id))?.company_name}</p>
+                <p>Contact: {customers.find(c => c.id === Number(form.customer_id))?.contact_person} | Mobile: {customers.find(c => c.id === Number(form.customer_id))?.mobile} | Email: {customers.find(c => c.id === Number(form.customer_id))?.email || 'N/A'}</p>
+              </div>
+              <span className="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded">Existing Customer</span>
+            </div>
+          )}
 
           {!form.customer_id && (
             <div className="grid grid-cols-2 gap-3">
