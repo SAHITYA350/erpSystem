@@ -181,9 +181,7 @@ const updateQuotationStatus = async (req, res) => {
 
     const currentStatus = current.rows[0].status;
 
-    if (currentStatus === 'DRAFT' && status === 'ACCEPTED') {
-      return res.status(400).json({ success: false, message: 'DRAFT quotation must be SENT before it can be ACCEPTED.' });
-    }
+    // allow status transition update
 
     if (currentStatus === 'REJECTED') {
       return res.status(400).json({ success: false, message: 'Cannot change status of a REJECTED quotation.' });
