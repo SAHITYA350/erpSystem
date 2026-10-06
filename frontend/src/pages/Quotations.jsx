@@ -11,6 +11,7 @@ function Quotations() {
   const [products, setProducts] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [selected, setSelected] = useState(null)
+  const [selectedEnquiryData, setSelectedEnquiryData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
@@ -39,9 +40,77 @@ function Quotations() {
     finally { setLoading(false) }
   }
 
+  const handleEnquirySelect = async (enquiryId) => {
+    setError('')
+    if (!enquiryId) {
+      setSelectedEnquiryData(null)
+      setForm(prev => ({ ...prev, enquiry_id: '', items: [{ product_id: '', quantity: '', unit_price: '', discount_percent: '0', gst_percent: '18' }] }))
+      return
+    }
+
+    try {
+      const res = await api.get(`/enquiries/${enquiryId}`)
+      const enq = res.data.data
+      setSelectedEnquiryData(enq)
+
+      if (enq.items && enq.items.length > 0) {
+        const loadedItems = enq.items.map(item => ({
+          product_id: String(item.product_id),
+          quantity: String(item.quantity),
+          unit_price: String(item.base_price || ''),
+          discount_percent: '0',
+          gst_percent: '18',
+        }))
+        setForm(prev => ({
+          ...prev,
+          enquiry_id: String(enquiryId),
+          items: loadedItems
+        }))
+      } else {
+        setForm(prev => ({ ...prev, enquiry_id: String(enquiryId) }))
+      }
+    } catch (err) {
+      console.error('Failed to load enquiry details:', err)
+      setForm(prev => ({ ...prev, enquiry_id: String(enquiryId) }))
+    }
+  }
+
+  const handleProductChange = (index, productId) => {
+    const p = products.find(pr => String(pr.id) === String(productId))
+    setForm(prev => {
+      const updated = prev.items.map((item, i) => {
+        if (i === index) {
+          return {
+            ...item,
+            product_id: String(productId),
+            unit_price: p ? String(p.base_price) : item.unit_price
+          }
+        }
+        return item
+      })
+      return { ...prev, items: updated }
+    })
+  }
+
   const handleItemChange = (index, field, value) => {
-    const updated = form.items.map((item, i) => i === index ? { ...item, [field]: value } : item)
-    setForm({ ...form, items: updated })
+    setForm(prev => {
+      const updated = prev.items.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+      return { ...prev, items: updated }
+    })
+  }
+
+  const addItem = () => {
+    setForm(prev => ({
+      ...prev,
+      items: [...prev.items, { product_id: '', quantity: '', unit_price: '', discount_percent: '0', gst_percent: '18' }]
+    }))
+  }
+
+  const removeItem = (index) => {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }))
   }
 
   const calcTotals = (items) => {
@@ -67,6 +136,18 @@ function Quotations() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    for (const item of form.items) {
+      if (!item.product_id) {
+        setError('Please select a product for each item row.')
+        return
+      }
+      if (!item.quantity || Number(item.quantity) <= 0) {
+        setError('Please provide a valid quantity greater than 0.')
+        return
+      }
+    }
+
     try {
       await api.post('/quotations', {
         enquiry_id: Number(form.enquiry_id),
@@ -75,12 +156,13 @@ function Quotations() {
         items: form.items.map(i => ({
           product_id: Number(i.product_id),
           quantity: Number(i.quantity),
-          unit_price: parseFloat(i.unit_price),
+          unit_price: parseFloat(i.unit_price) || 0,
           discount_percent: parseFloat(i.discount_percent) || 0,
           gst_percent: parseFloat(i.gst_percent) || 18,
         }))
       })
       setForm(emptyForm)
+      setSelectedEnquiryData(null)
       setShowForm(false)
       fetchAll()
     } catch (err) {
@@ -129,7 +211,7 @@ function Quotations() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Quotations</h2>
-        <button onClick={() => { setShowForm(!showForm); setSelected(null) }}
+        <button onClick={() => { setShowForm(!showForm); setSelected(null); setSelectedEnquiryData(null); }}
           className="text-sm bg-yellow-500 text-white px-3 py-1.5 rounded hover:bg-yellow-600">
           {showForm ? 'Cancel' : '+ Create Quotation'}
         </button>
@@ -143,10 +225,14 @@ function Quotations() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Enquiry *</label>
-              <select value={form.enquiry_id} onChange={e => setForm({ ...form, enquiry_id: e.target.value })} required
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+              <select
+                value={form.enquiry_id}
+                onChange={e => handleEnquirySelect(e.target.value)}
+                required
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+              >
                 <option value="">-- Select Enquiry --</option>
-                {enquiries.map(e => <option key={e.id} value={e.id}>{e.enquiry_number} — {e.company_name}</option>)}
+                {enquiries.map(e => <option key={e.id} value={String(e.id)}>{e.enquiry_number} — {e.company_name}</option>)}
               </select>
             </div>
             <div>
@@ -156,63 +242,111 @@ function Quotations() {
             </div>
           </div>
 
+          {selectedEnquiryData && (
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-900">
+              <span className="font-semibold">{selectedEnquiryData.enquiry_number}</span> — Customer: <strong>{selectedEnquiryData.company_name}</strong> ({selectedEnquiryData.contact_person})
+              <p className="mt-0.5 text-blue-700">Items requested in this enquiry have been pre-filled below. You can adjust prices and discounts as needed.</p>
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Items</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">Items</label>
+              <button type="button" onClick={addItem} className="text-xs text-blue-600 hover:underline">+ Add Custom Item</button>
+            </div>
             <table className="w-full text-sm mb-2">
               <thead>
                 <tr className="bg-gray-50 text-xs text-gray-500">
                   <th className="px-2 py-1 text-left">Product</th>
-                  <th className="px-2 py-1">Qty</th>
-                  <th className="px-2 py-1">Unit Price</th>
-                  <th className="px-2 py-1">Disc%</th>
-                  <th className="px-2 py-1">GST%</th>
-                  <th></th>
+                  <th className="px-2 py-1 text-center" style={{ width: '90px' }}>Qty</th>
+                  <th className="px-2 py-1 text-center" style={{ width: '130px' }}>Unit Price (₹)</th>
+                  <th className="px-2 py-1 text-center" style={{ width: '80px' }}>Disc %</th>
+                  <th className="px-2 py-1 text-center" style={{ width: '80px' }}>GST %</th>
+                  <th style={{ width: '30px' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {form.items.map((item, index) => (
-                  <tr key={index}>
+                  <tr key={index} className="border-b">
                     <td className="px-2 py-1">
-                      <select value={item.product_id} required
-                        onChange={e => {
-                          const p = products.find(pr => pr.id === Number(e.target.value))
-                          handleItemChange(index, 'product_id', e.target.value)
-                          if (p) handleItemChange(index, 'unit_price', p.base_price)
-                        }}
-                        className="w-full border rounded px-2 py-1 text-xs">
-                        <option value="">-- Select --</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.product_name}</option>)}
+                      <select
+                        value={item.product_id}
+                        required
+                        onChange={e => handleProductChange(index, e.target.value)}
+                        className="w-full border rounded px-2 py-1.5 text-xs bg-white"
+                      >
+                        <option value="">-- Select Product --</option>
+                        {products.map(p => (
+                          <option key={p.id} value={String(p.id)}>
+                            {p.product_code} — {p.product_name}
+                          </option>
+                        ))}
                       </select>
                     </td>
-                    {['quantity', 'unit_price', 'discount_percent', 'gst_percent'].map(field => (
-                      <td key={field} className="px-2 py-1">
-                        <input type="number" min="0" value={item[field]}
-                          onChange={e => handleItemChange(index, field, e.target.value)} required
-                          className="w-full border rounded px-2 py-1 text-xs" />
-                      </td>
-                    ))}
                     <td className="px-2 py-1">
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={e => handleItemChange(index, 'quantity', e.target.value)}
+                        required
+                        placeholder="Qty"
+                        className="w-full border rounded px-2 py-1.5 text-xs text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={e => handleItemChange(index, 'unit_price', e.target.value)}
+                        required
+                        placeholder="Price"
+                        className="w-full border rounded px-2 py-1.5 text-xs text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={item.discount_percent}
+                        onChange={e => handleItemChange(index, 'discount_percent', e.target.value)}
+                        placeholder="0"
+                        className="w-full border rounded px-2 py-1.5 text-xs text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={item.gst_percent}
+                        onChange={e => handleItemChange(index, 'gst_percent', e.target.value)}
+                        placeholder="18"
+                        className="w-full border rounded px-2 py-1.5 text-xs text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-1 text-center">
                       {form.items.length > 1 && (
-                        <button type="button" onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })}
-                          className="text-red-500 text-xs">✕</button>
+                        <button type="button" onClick={() => removeItem(index)} className="text-red-500 text-xs hover:text-red-700">✕</button>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <button type="button" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: '', unit_price: '', discount_percent: '0', gst_percent: '18' }] })}
-              className="text-sm text-blue-600 hover:underline">+ Add Item</button>
           </div>
 
           <div className="bg-gray-50 p-3 rounded text-sm space-y-1 text-right">
             <div>Subtotal: <strong>{fmt(totals.subtotal)}</strong></div>
             <div>Discount: <strong>-{fmt(totals.discountTotal)}</strong></div>
             <div>GST: <strong>+{fmt(totals.gstTotal)}</strong></div>
-            <div className="text-base font-bold">Grand Total: {fmt(totals.grand)}</div>
+            <div className="text-base font-bold text-gray-900">Grand Total: {fmt(totals.grand)}</div>
           </div>
 
-          <button type="submit" className="bg-yellow-500 text-white text-sm px-4 py-2 rounded hover:bg-yellow-600">
+          <button type="submit" className="bg-yellow-500 text-white text-sm px-4 py-2 rounded hover:bg-yellow-600 font-semibold">
             Save Quotation
           </button>
         </form>
