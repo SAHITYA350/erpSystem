@@ -11,8 +11,8 @@ const createEnquiry = async (req, res) => {
     }
 
     for (const item of items) {
-      if (!item.product_id) {
-        return res.status(400).json({ success: false, message: 'Each item needs a valid product_id.' });
+      if (!item.product_id || !item.quantity || Number(item.quantity) <= 0) {
+        return res.status(400).json({ success: false, message: 'Each item needs a valid product_id and quantity > 0.' });
       }
     }
 
