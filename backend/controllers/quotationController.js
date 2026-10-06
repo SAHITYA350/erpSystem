@@ -237,7 +237,14 @@ const convertToSalesOrder = async (req, res) => {
       });
     }
 
-    // proceed to order number creation
+    const orderCheck = await client.query('SELECT id, order_number FROM sales_orders WHERE quotation_id = $1', [id]);
+    if (orderCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        success: false,
+        message: `Sales order ${orderCheck.rows[0].order_number} already exists for this quotation.`
+      });
+    }
 
     const orderNumber = await generateNumber('SO', 'sales_orders', client);
 
