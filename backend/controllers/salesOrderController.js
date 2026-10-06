@@ -238,14 +238,7 @@ const cancelSalesOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Sales order not found.' });
     }
 
-    const order = orderRes.rows[0];
-    if (order.status !== 'CONFIRMED') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        success: false,
-        message: `Order status is ${order.status}. Only CONFIRMED orders can be cancelled to release reserved inventory.`
-      });
-    }
+    // cancel order and release reserved stock
 
     const itemsRes = await client.query(
       'SELECT product_id, quantity FROM sales_order_items WHERE sales_order_id = $1',
